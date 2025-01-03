@@ -9,16 +9,14 @@ import axios, { AxiosError } from "axios";
 import { useSession } from "next-auth/react";
 import { useCallback, useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
-import { cn } from "@/lib/utils";
-import GridPattern from "@/components/ui/grid-pattern";
-import TypingAnimation from "@/components/ui/typing-animation";
-import RippleButton from "@/components/ui/ripple-button";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { Loader2, RefreshCcw } from "lucide-react";
 import MessageCard from "@/components/MessageCard";
+import { Button } from "@/components/ui/button";
+import Link from "next/link";
 
-const Dashboard = () => {
+function UserDashboard() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isSwitchLoading, setIsSwitchLoading] = useState(false);
@@ -31,13 +29,14 @@ const Dashboard = () => {
 
   const { data: session } = useSession();
 
-  const form = useForm({ resolver: zodResolver(acceptMessageSchema) });
+  const form = useForm({
+    resolver: zodResolver(acceptMessageSchema),
+  });
 
   const { register, watch, setValue } = form;
-
   const acceptMessages = watch("acceptMessages");
 
-  const fetchAcceptMessage = useCallback(async () => {
+  const fetchAcceptMessages = useCallback(async () => {
     setIsSwitchLoading(true);
     try {
       const response = await axios.get<apiResponse>("/api/accept-messages");
@@ -47,18 +46,19 @@ const Dashboard = () => {
       toast({
         title: "Error",
         description:
-          axiosError.response?.data.message ||
+          axiosError.response?.data.message ??
           "Failed to fetch message settings",
         variant: "destructive",
       });
     } finally {
       setIsSwitchLoading(false);
     }
-  }, [setValue]);
+  }, [setValue, toast]);
 
   const fetchMessages = useCallback(
     async (refresh: boolean = false) => {
-      setIsLoading(false), setIsSwitchLoading(false);
+      setIsLoading(true);
+      setIsSwitchLoading(false);
       try {
         const response = await axios.get<apiResponse>("/api/get-messages");
         setMessages(response.data.messages || []);
@@ -73,29 +73,33 @@ const Dashboard = () => {
         toast({
           title: "Error",
           description:
-            axiosError.response?.data.message ||
-            "Failed to fetch message settings",
+            axiosError.response?.data.message ?? "Failed to fetch messages",
           variant: "destructive",
         });
       } finally {
-        setIsLoading(false), setIsSwitchLoading(false);
+        setIsLoading(false);
+        setIsSwitchLoading(false);
       }
     },
-    [setIsLoading, setMessages]
+    [setIsLoading, setMessages, toast]
   );
 
+  // Fetch initial state from the server
   useEffect(() => {
     if (!session || !session.user) return;
-    fetchMessages();
-    fetchAcceptMessage();
-  }, [session, setValue, fetchAcceptMessage, fetchMessages]);
 
+    fetchMessages();
+
+    fetchAcceptMessages();
+  }, [session, setValue, toast, fetchAcceptMessages, fetchMessages]);
+
+  // Handle switch change
   const handleSwitchChange = async () => {
     try {
       const response = await axios.post<apiResponse>("/api/accept-messages", {
         acceptMessages: !acceptMessages,
       });
-      setValue("acceptingMessages", !acceptMessages);
+      setValue("acceptMessages", !acceptMessages);
       toast({
         title: response.data.message,
         variant: "default",
@@ -105,47 +109,52 @@ const Dashboard = () => {
       toast({
         title: "Error",
         description:
-          axiosError.response?.data.message ||
-          "Failed to fetch message settings",
+          axiosError.response?.data.message ??
+          "Failed to update message settings",
         variant: "destructive",
       });
     }
   };
 
-  const { username } = session?.user as User;
-  //TODO: do more research
+  if (!session || !session.user) {
+    return <div></div>;
+  }
+
+  const { username } = session.user as User;
+
   const baseUrl = `${window.location.protocol}//${window.location.host}`;
   const profileUrl = `${baseUrl}/u/${username}`;
 
   const copyToClipboard = () => {
     navigator.clipboard.writeText(profileUrl);
     toast({
-      title: "URL copied",
-      description: "Profile URL has been copied to clipboard",
+      title: "URL Copied!",
+      description: "Profile URL has been copied to clipboard.",
     });
   };
 
-  if (!session || !session.user) {
-    return <div>Please login</div>;
-  }
-
   return (
-    <div className="my-8 mx-4 md:mx-8 lg:mx-auto p-6 w-full max-w-6xl bg-black">
-      <TypingAnimation>User Dashboard</TypingAnimation>
+    <div className="my-8 mx-4 md:mx-8 lg:mx-auto p-6 bg-black text-white rounded w-full max-w-6xl">
+      <h1 className="text-4xl font-bold mb-4">User Dashboard</h1>
+
       <div className="mb-4">
-        <TypingAnimation>Copy Your Unique Link</TypingAnimation>{" "}
+        <h2 className="text-lg font-semibold mb-2">Copy Your Unique Link</h2>{" "}
         <div className="flex items-center">
           <input
             type="text"
             value={profileUrl}
             disabled
-            className="input input-bordered w-full p-2 mr-2"
+            className="input input-bordered rounded-lg w-full p-2 mr-2"
           />
-          <RippleButton onClick={copyToClipboard} rippleColor="#ADD8E6">
+          <Button onClick={copyToClipboard} className="mr-2">
             Copy
-          </RippleButton>
+          </Button>
+          <Link href={profileUrl} className="px-4 py-2 rounded-md bg-blue-900">
+            Visit
+          </Link>
         </div>
       </div>
+
       <div className="mb-4">
         <Switch
           {...register("acceptMessages")}
@@ -158,11 +167,13 @@ const Dashboard = () => {
         </span>
       </div>
       <Separator />
-      <RippleButton
+
+      <Button
         className="mt-4"
+        variant="outline"
         onClick={(e) => {
           e.preventDefault();
-          fetchMessages();
+          fetchMessages(true);
         }}
       >
         {isLoading ? (
@@ -170,7 +181,7 @@ const Dashboard = () => {
         ) : (
           <RefreshCcw className="h-4 w-4" />
         )}
-      </RippleButton>
+      </Button>
       <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-6">
         {messages.length > 0 ? (
           messages.map((message, index) => (
@@ -181,20 +192,11 @@ const Dashboard = () => {
             />
           ))
         ) : (
-          <p>No message to reply</p>
+          <p>No messages to display.</p>
         )}
       </div>
-      <GridPattern
-        width={30}
-        height={30}
-        x={-1}
-        y={-1}
-        strokeDasharray={"4 2"}
-        className={cn(
-          "[mask-image:radial-gradient(500px_circle_at_center,white,transparent)]"
-        )}
-      />
     </div>
   );
-};
-export default Dashboard;
+}
+
+export default UserDashboard;

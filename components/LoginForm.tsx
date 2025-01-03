@@ -53,7 +53,7 @@ const LoginForm = () => {
     }
 
     if (!result?.error) {
-      router.replace("/dashboard");
+      router.replace("dashboard");
     }
   };
 

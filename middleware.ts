@@ -3,7 +3,10 @@ import type { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
 
 export async function middleware(request: NextRequest) {
-  const token = await getToken({ req: request });
+  const token = await getToken({
+    req: request,
+    secret: process.env.NEXTAUTH_SECRET,
+  });
   const url = request.nextUrl;
 
   // Prevent redirect loops by checking the current destination
@@ -11,7 +14,7 @@ export async function middleware(request: NextRequest) {
     // Redirect authenticated users away from public routes
     if (
       token &&
-      ["/sign-in", "/sign-up", "/verify", "/"].some((path) =>
+      ["/sign-in", "/sign-up", "/verify"].some((path) =>
         url.pathname.startsWith(path)
       ) &&
       url.pathname !== "/dashboard"
