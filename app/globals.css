@@ -10,8 +10,8 @@ body {
 
 @font-face {
   font-family: futura;
-  src: url("/public/fonts/Futura-Bold.woff2") format("woff2");
-  font-weight: normal;
+  src: url("/fonts/Futura-Bold.woff2") format("woff2");
+  font-weight: lighter;
   font-style: normal;
   font-display: swap;
 }
